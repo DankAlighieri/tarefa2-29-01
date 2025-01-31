@@ -12,9 +12,9 @@
 
 #define intervalo 3000
 
-bool led_stat_r = false;
-bool led_stat_g = false;
-bool led_stat_b = false;
+typedef enum {turn_off_green, turn_off_blue, turn_off_red} Led_State;
+
+static Led_State led_state = turn_off_green;
 
 int64_t turn_off_callback(alarm_id_t, void *user_data);
 
@@ -27,17 +27,15 @@ int main()
     button_init(BTN_PIN);
 
     while (true) {
-        if(!gpio_get(BTN_PIN) && !led_stat_r && !led_stat_g && !led_stat_b) {
+        if(!gpio_get(BTN_PIN) && !gpio_get(LED_R) && !gpio_get(LED_G) && !gpio_get(LED_B)) {
             sleep_ms(50);
             if(!gpio_get(BTN_PIN)){
+                printf("Botao pressionado\n");
                 gpio_put(LED_R, true);
                 gpio_put(LED_G, true);
                 gpio_put(LED_B, true);
 
-                led_stat_r = true;
-                led_stat_g = true;
-                led_stat_b = true;
-
+                // Programa um alarme para daqui a 3 segundos para desativar o led verde
                 add_alarm_in_ms(intervalo, turn_off_callback, NULL, false);
             }
         }
@@ -45,6 +43,30 @@ int main()
     }
 }
 
-int64_t turn_off_callback(alarm_id_t, void *user_data){
-    
+int64_t turn_off_callback(alarm_id_t, void *user_data)  {
+    switch(led_state) {
+        case turn_off_green:
+            printf("Desligando led verde\n");
+            gpio_put(LED_G, false);
+            led_state = turn_off_blue;
+            // Alarme para desativar o botão azul
+            add_alarm_in_ms(intervalo, turn_off_callback, NULL, false);
+            break;
+        case turn_off_blue:
+            printf("Desligando led azul\n");
+            gpio_put(LED_B, false);
+            led_state = turn_off_red;
+            // Alarme para desativar o botão azul
+            add_alarm_in_ms(intervalo, turn_off_callback, NULL, false);
+            break;
+        case turn_off_red:
+            printf("Desligando led vermelho\n");
+            gpio_put(LED_R, false);
+            led_state = turn_off_green;
+            break;
+        default:
+            printf("Estado incerto\n");
+            break;
+    }
+    return 0;
 }
